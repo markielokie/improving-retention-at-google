@@ -1,0 +1,424 @@
+---
+title: "Does a raise in yearly increment percentages improve tenures of Google software engineers?"
+author:  "Marcus Loke, Anni Yi, Romauli Butarbutar, Yusen Zhang"
+output:
+  html_document: 
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment="", warning = FALSE, message = FALSE, tidy.opts=list(width.cutoff=55), tidy = TRUE)
+
+library(pwr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(data.table)
+library(DT)
+
+# Create function to evaluate effect size, lower confidence interval and p-value
+analyze.experiment <- function(the.dat) {
+  require(data.table)
+  setDT(the.dat)
+  the.test <- t.test(x = the.dat[Group == "Treatment", Tenure_Year], y = the.dat[Group == "Control", Tenure_Year], alternative = "greater")
+  the.effect <- the.test$estimate[1] - the.test$estimate[2]
+  lower.bound <- the.test$conf.int[1]
+  p <- the.test$p.value
+  
+  result <- data.table(effect = the.effect, lower_ci = lower.bound, 
+                       p = p)
+  
+  return(result)
+}
+```
+
+# Executive Summary
+
+Due to the pervasive culture of attrition in the tech industry in the United States, companies like Google has to deal with constant productivity losses and bottlenecks when employees leave, the knowledge drain exacerbated by the outgoing staff and the loss of revenue due to the lack of manpower. At Google, the mean tenures of employees is 1.9 years ([Swanner, 2017][Swanner, 2017]), which is not an optimistic figure when compared to other industries. As such, there is a need to reduce the attrition rates in order to not impede productivity for the business.
+
+Among the myriad factors that could affect employee retention, this research investigates solely on increasing salary increments and its effect on employee retention as pay is cited as one of the top reasons for employees leaving their jobs ([Ghapanchi & Aurum, 2011][Ghapanchi & Aurum, 2011], [Deloitte, 2019][Deloitte, 2019] and [The Dice, 2020][The Dice, 2020]). Here, we specifically want to know whether a 5% increment in salary at the end of the first year would result in higher mean tenures as compared to a baseline of 2.7%.
+
+The research design focuses on Google software engineers who have been at least 6 months to a year with Google across 4 different offices in the United States (San Francisco, New York City, Sunnyvale and Chicago) and they will be sampled randomly. As a result of the random sampling across the 4 office locations, we should expect similar proportions of software engineers in demography and not be confounded by other unknown factors.
+
+The research will run for 1.5 years in order to cover the mean tenure of 1.9 years. The salary increment (2.7% and 5%) will be dispensed at the 1 year mark for each employee that crosses the 1 year mark.
+
+Finally, the comparison of results (mean tenures) between the treatment group and the control group would be done via a two-sample t-test with a one-sided alternative to check for statistical significance. We assume that an effect size of 0.5 years to be meaningful and measurable.
+
+In order to have an idea of how the actual data might look like once the study is conducted, we also performed simulations using random number generators and scenario planning to create hypothetical data. We simulated the experiment a 1000 times under an effect of 0.5 years and another 1000 times under no effect and the result suggested that our experiment could achieve a power of 90.4% with the current research design setup to detect an effect size of 0.5 years.
+
+# Part 1: Research Proposal
+
+## Statement of the Problem
+
+Why do so many tech employees choose to leave their jobs? In 2018, the tech sector in the United States suffered the highest turnover rates (13.2%) as compared to other industries such as media and entertainment (11.4%), government/non-profit (11.2%) and financial services (10.8%) ([viGlobal, 2018][viGlobal, 2018]). Given the pervasive turnover within the workforce, should such culture be accepted in HR talent acquisition and management teams, especially in tech companies? Or are there preemptive strategies that can be employed to tackle attrition?
+
+High turnover has adverse effects on the business. From a monetary standpoint, the amount that the company needs to spend on a replacement staff can range from one to seven times the employee’s annual salary, and this is due to many factors including, inter alia, the cost and time to find replacements and the revenue contribution attributed to that employee ([Kochanski & Ledford, 2001][Kochanski & Ledford, 2001]). Other impacts include low morale for the team and bottlenecks caused by the laborious efforts needed to onboard incoming staff, exacerbated by the knowledge drain of the outgoing staff.
+
+At Google, the median tenure of employees is 1.1 years (mean of 1.9 years), as compared to the United States median tenure of 4.7 years for tech occupations ([U.S. Bureau of Labor Statistics, 2018][U.S. Bureau of Labor Statistics, 2018]), which is an area of concern especially with the tech talent shortage in the industry and the increased demands of the technology market. According to PayScale, a company that aggregates the average tenures of Fortune 500 companies, Google stands at 462^nd^ place for its low employee retention rate ([PayScale, n.d.][PayScale, n.d.]). For this reason, this paper seeks to explore whether an increase in yearly increment percentages will improve the employee retention/tenure at Google.
+
+## Research Question and Hypotheses
+
+### Research Question
+ 
+Contingent on the aforementioned reasons, the primary research question that we would like to address is:
+
+> *Can a salary increment of 5% at the end of the first year increase the average tenure for Google software engineers in the United States?*
+
+### Hypotheses
+
+#### Null Hypothesis With Mathematical Notation
+
+Since the the average year on year increment for tech companies in 2019 was 2.7% ([US Bureau of Labor Statistics, 2021][US Bureau of Labor Statistics, 2021]), it would be interesting to examine whether a 5% increment on yearly salaries would have an effect on retention for Google software engineers. Therefore, we propose the following null hypothesis:
+
+> A salary increment of 5% at the end of the first year **does not** increase the average tenure of Google software engineers.
+
+In mathematical notation, the null hypothesis is given as:
+$$ H_0: T_{avg,5\%} - T_{avg,2.7\%} \leqslant 0, $$
+where $T_{avg,5\%}$ is the average tenure of the treatment group when given a 5% salary increment and $T_{avg,2.7\%}$ is the average tenure of the control group when given the nominal 2.7% increment.
+
+#### Alternative Hypothesis With Mathematical Notation
+
+Correspondingly, the alternative hypothesis would be:
+
+> A salary increment of 5% at the end of the first year **improves** the average tenure of Google software engineers.
+
+The mathematical notation of the alternative hypothesis is:
+$$ H_1: T_{avg,5\%} - T_{avg,2.7\%} > 0 $$
+We will conduct an explanatory research to explore the causal relationships between increasing the salary by 5% and the average tenure of employees at Google. The independent variable is the salary increment of either 5% or 2.7%, while the dependent variable is the tenure of employees measured in years. The hypothesis testing would test the difference of the average tenures between having a 5% salary increment and the 2.7% salary increment. 
+
+## Importance of the Study
+
+Due to the high attrition that plagues tech firms (and specifically, Google), there is strong impetus for the study to understand whether increasing yearly salary increments can increase the average tenures of software engineers at Google so that talent retention can be improved. If a causal inference can be made, then the research findings would be valuable to the business and HR teams as they would be able to curate HR policies differently to alleviate the attrition problem.
+
+## Literature Review
+
+A myriad of research studies had been conducted on tech employees’ intention to leave ([Ghapanchi & Aurum, 2011][Ghapanchi & Aurum, 2011]). While there are many organizational antecedents/factors that affect attrition, the most frequently cited organizational reason affecting staff’s intentions to leave is salary ([Ghapanchi & Aurum, 2011][Ghapanchi & Aurum, 2011]). Further corroborating this phenomena, according to the Deloitte Global Millennial Survey in 2019, close to half of the respondents (49%) reported that they would leave their jobs if they had a choice, of which 43% of them cited dissatisfaction with their pay and benefits as the top reason for leaving ([Deloitte, 2019][Deloitte, 2019]). In the tech industry, the results are worse. According to the Dice Survey in 2019, which is a salary report of United States tech firms, 45% of respondents highlighted they would like to change employers within the next year, of which 71% of them cited they are seeking salary compensation  as the top reason as to why they would leave ([The Dice, 2020][The Dice, 2020]).
+
+Even successful tech giants like Google are not spared from this ubiquitous effect of employee turnovers. In fact, a quick glance at the mean tenure of the top tech companies in the United States just underscores how appalling the situation is: Google stands at 1.9 years; Twitter at 1.83 years; and Facebook at 2.02 years ([Swanner, 2017][Swanner, 2017]). The low tenures (i.e., high turnovers) in the entire tech industry, and in these top tech firms in particular, are a result of the increasing demand for tech talents, driven by the rapid growth in technology ([Hecker, 2005][Hecker, 2005]). The effect of this high demand for tech talents also results in a race to attract talents commensurate with increased compensation ([ViGlobal, 2018][ViGlobal, 2018]).  
+
+The low mean tenure of employees in the tech industry presents many ramifications to the organization. The direct effect is that the turnover of employees will slow down the company's overall business and bring productivity losses. For instance, if an existing software developer leaves, the company often has to take 43 days on average to hire a new one, which is approximately a month and a half of productivity loss and it does not account for onboarding ([Lewis, 2020][Lewis, 2020]). This consequence will cost the company as much as US$33,251 for each employee who leaves ([Lewis, 2020][Lewis, 2020]). Apart from the cost related to productivity loss, some sources also factor in the loss of intellectual capital attributed to the departing employees and the time needed to onboard new staff ([Kochanski & Ledford, 2001][Kochanski & Ledford, 2001]).
+
+In order to circumvent these adverse effects in the organization, reducing the turnover rate is imperative. Based on the fact that we already know that 71% of people would choose to leave due to seeking higher compensation, and that salary is the most cited organizational factor that influences staff’s intentions to leave, our research will be focused on exploring the impact of raising yearly salary percentages on employee retention rates. While the year on year salary increments vary from industry to industry, the average year on year increment for tech companies in 2019 was 2.7% ([US Bureau of Labor Statistics, 2021][US Bureau of Labor Statistics, 2021]), which begs the question: Would an increase in the yearly increment percentage improve the tenure of staff in tech companies, particularly Google?
+
+## Research Plan
+
+### Population of Interest
+The population of interest would be 160 Google software engineers who have been with the company for at least 6 months to a year to weed out those employees who leave the company in less than 6 months in joining the company. This would reduce the length of the experiment and ensure higher rates of employees crossing over the 1 year mark. We will also exclude employees with poor evaluations and/or those the company might not be inclined to retain.
+
+### Sample Selection
+
+We propose cluster sampling, where subjects would be sampled across the various Google offices in the United States and 20 employees will be randomly sampled from each office based on their length of employment at Google. For each office, we would sample from the pool of employees who have been with Google for at least 6 months to a year, exclude those with poor evaluations and those that Google might not be inclined to retain. 
+
+### Operational Procedures
+
+* **Conditions**: In each of the 4 office locations in the United States, we would randomly select 20 new employees who (1) have been with Google for 6 months to a year, (2) exclude those with poor evaluations and (3) exclude those that Google might not be inclined to retain. The sampling should lead to similar proportions of new employees in gender, age, salary and ethnicity across the 4 office locations.
+
+* **Comparisons**: Each office location will have a treatment group and a control group, which results in a total of 4 treatment groups and 4 control groups in the experiment across the 4 office locations. Employees in the treatment groups will be treated with 5% salary increment while employees in the control group will be given the mean 2.7% increment after their first year in Google, as shown:
+  
+  Treatment Groups (5% Increment) | Control Groups (2.7% Increment)
+  ---------------- | ----------------
+  San Francisco, CA, Office (20 people) | San Francisco, CA, Office (20 people)
+  New York City, NY, Office (20 people) | New York City, NY, Office (20 people)
+  Sunnyvale, CA, Office (20 people)     | Sunnyvale, CA, Office (20 people)
+  Chicago, IL, Office (20 people)       | Chicago, IL, Office (20 people)
+  
+  The reason why we have decided to have both a treatment group and a control group in each of the office location is because different city offices are situated in locations with different standards of living. For instance, San Francisco and New York City are more expensive areas to live in (although Sunnyvale is not far behind). By contrast, Chicago is comparatively reasonable in terms of costs, and with a less developed technical industry, it may have less to worry about in terms of competition. As a result, we do not want to complicate the analysis by adjusting for other additional variables/factors that could confound the experiment. In short, we want to simplify the experiment due to the short timeframe for this project and limited resources (Google might not be able to provide additional employee demography data due to data privacy concerns).
+
+  Finally, We can aggregate all subjects in the 4 treatment groups and 4 control groups to just a single treatment group and control group for comparison.
+  
+* **Controls**: Potential factors that might influence average tenures are former experiences, age, gender, ethnicity, cultural differences between the East and West coasts, and cost of living. It is for this reason that we proposed to have a treatment group and control group in each of the 4 office locations to ensure an even distribution of these factors.
+
+  To reduce the risk of intermingling between treatment groups and control groups, we will find divisions that are relatively distinct. For instance, the treatment group should comprise of subjects from one product team (e.g., Google Cloud) while the control group from another (e.g., Google Play). Also, the team has assessed that employees sharing of salary increments is not a ubiquitous event, therefore a low chance chance of intermingling.
+
+* **Limitations**: While the experiment focuses on salary increments as the only independent variable, there are other factors that could affect retention in a company. For example, family income/wealth, employee satisfaction, yearly performance bonus, staff benefits, etc. These factors could be potential for more research in future.
+
+* **Cost**: Majority of the research operations cost will be due to the increase in yearly salary of 5% for the 80 employees in the treatment group that year. Assuming that Google pays the mean increment of 2.7% to all her employees, the extra 2.3% (5%-2.7%) for the 80 employees in the treatment group will be the incurred cost for this project.
+
+* **Time needed**: Since the research experiment attempts to ascertain the effects of 5% salary increments given in the first year on retention, and that the subjects have to be at least 6 months in the company, we propose to run the experiment for 1.5 years to sufficiently cover the median and mean tenures of Google employees at 1.1 years and 1.9 years respectively (i.e., if the sampled subject has been with Google for 6 months, the experiment would end when he/she reaches 2 years with the company).
+
+* **Tools needed**: We propose doing a comparison between the 2 samples' means for the tenure in years, hence, we use a T-test statistic. If we want to compare the proportion and to see the difference in distribution of various employee tenures, we can use the Chi-squared test of independence.
+
+### Data Collection
+
+* **Randomization of subjects**: This can be done by getting employee data for the 4 office locations from Google's Human Resources (HR) records. A possible way is to randomize the selection by the employees' last names. If data privacy is of concern, we can request for masked data containing only the relevant fields such as gender, age, income level, length of employment, etc. With this data, we can perform the sampling by length of employment.
+
+* **Data collection**: Similarly, we will work with Google's HR to collect the tenure information of the 80 subjects during/after the experiment.
+
+* **Data security**: As this study involves gathering sensitive information like salary, it is important that we seek clearance from the Google HR Management Team in order to proceed. If the Management Team deems this data collection process as too sensitive, our alternative proposal would be to have the data fields masked so that the list of subjects remain anonymous.
+
+### Variables
+
+* **Independent variable**: The independent variable is the salary increment of either 5% (treatment) or 2.7% (control).
+
+* **Dependent variable**: The dependent variable is the tenure of Google software engineers measured in years.
+
+* **Other variables**: We will collect other variables such as age (in years), gender (male/female), length of employment (in years), ethnicity and salary, should Google HR permits so. Also, since we have defined inclusion criteria for subjects in this study (i.e., subjects have to be with Google between 6 months and a year, cannot have poor evaluations and cannot be those that Google might not be inclined to retain), it is important that we work with Google HR on ensuring that employees who match these variables are filtered out of our sample population.
+
+## Statistical Analysis Plan
+
+We propose to perform a two-sample t-test for the mean tenure (in years) between the control group and treatment group. This test will determine whether a 5% salary increment at the end of the first year improves the average tenure of Google software engineers as compared to the control (nominal) of 2.7% salary increment. As we are testing for an increase in mean tenures, a one-sided alternative is appropriate.
+
+## Limitations and Uncertainties
+
+In general, the limitations include unmeasured variables. While the experiment focuses on salary increment as the only independent variable, there are other factors that could affect retention in a company. For example, family income/wealth, employee satisfaction, yearly performance bonus, staff benefits, etc.
+
+Also, while we have reduced the risk of intermingling of subjects by finding divisions that are relatively distinct (for control and treatment groups) and assuming that staff would not disclose salary information, there could still be a chance where intermingling might happen. For instance, subjects in the treatment group could be close friends with subjects in the control group. But as much as possible, we will work with Google HR to constantly remind employees not to disclose confidential salary information.
+
+# Part 2: Simulation of Effects
+
+For our project, we want to know what the actual data might look like once the study is conducted. Having an example of what the data might look like can help us create our plans for analysis. We would conduct simulations using random number generators and scenario planning to create hypothetical data.
+
+## Simulations
+
+The simulation plan would be to set the sample size of the experiment as 160 subjects (80 in treatment group and 80 in control group), as outlined in the research plan. We will randomly assign subjects to the treatment groups and control groups. An effect size of 0.5 years is assumed to be measurable and meaningful.
+
+We are going to conduct our experiment in 4 different cities in the United States. Each branch in every city has two groups of participants -- each treatment group and control group in each office will have 20 participants, therefore, the total participants in the control group and treatment group is 80 each (i.e., 4 offices x 20 people). We set up the significant level to 5% and power to 90%. Since our alternative hypothesis is that an increase in yearly increment percentages from 2.7% to 5% increases the average tenures of Google software engineers, so our alternative here is “greater”.
+
+Here, we run a `pwr.t.test` with `n=80`, `sig.level=0.05` and `power=0.9` to determine what the `d` might be.
+
+```{r pwr}
+pwr.t.test(n=80, sig.level=0.05, power=0.9, type="two.sample", alternative="greater")
+```
+
+After running this code, we get the result: d = 0.4647034. After calculations, we get the standard deviation, SD = 1.075955 (i.e., `SD = effect size/d`), as shown:
+
+```{r sd}
+SD = 0.5/0.4647034
+SD
+```
+
+The SD value of `r SD` will be used as an input to the `rnorm` function when we generate the hypothetical data in the treatment groups and control groups in the next section below.
+
+However, let's say we are not able to gather the required amount of subjects for the experiment due to unforeseen circumstances, and that we are only able to gather half of the required amount (i.e., 10 subjects per treatment/control group per office). This will result in a total of 40 people in the treatment group and 40 people in the control group. Let's run the `pwr.t.test` again to see how the power changes if we reduce the sample population by half (i.e., `n=40` and `d=0.4647034`).
+
+```{r pwr2}
+pwr.t.test(n=40, sig.level=0.05, d=0.4647034, type="two.sample", alternative="greater")
+```
+
+Under this circumstance, the power would drop to 66.1% should the sample population drop by half. This would be detrimental to the research plan as this means that only 66.1% of the time we can reject the null hypothesis when it is false and about one-third of the time we will not correctly reject the null hypothesis.
+
+Also, let's consider another scenario where our detectable effect size is not 0.5 and that we want to be able to observe a smaller effect size of, say, 0.25 years. How would the power of the experiment change? And what sample size would be needed if we would want to maintain a power of, say, 90%? Let's run a few more scenarios with `pwr.t.test` to understand how our experiment setup might change.
+
+Let's run `pwr.t.test` with `sig.level=0.5`, `d=0.25/1.075955` and `power=0.9`.
+
+```{r pwr3}
+pwr.t.test(sig.level=0.05, d=0.25/1.075955, power=0.9, type="two.sample", alternative="greater")
+```
+
+The results showed that if we were to reduce the observable effect size from 0.5 years to 0.25 years, then the sample population needed for each of the treatment group and control group is 318. This would mean that we would need to find around 80 people in each Google office for each group (318/4 = 79.5). But this might be difficult as each office may not have 80 employees who are at least 6 months to a year with the company and who satisfy the study inclusion criteria. Hence, if possible, we may need to reduce the required power and/or increase the observable effect size.
+
+Next, assuming that we are able to recruit the required sample population for the study, and with a reduced observable effect size of 0.25 years. Let's see what power we are able to get in this scenario (`n=80`, `sig.level=0.05` and `d=0.25/1.075955`).
+
+```{r pwr4}
+pwr.t.test(n=80, sig.level=0.05, d=0.25/1.075955, type="two.sample", alternative="greater")
+```
+
+In this scenario, reducing the observable effect size from 0.5 years to 0.25 years would reduce the power to 42.8%, assuming the other factors are constant at previous levels. This means that only 42.8% of the time we can reject the null hypothesis when it is false and more than half of the time we will not correctly reject the null hypothesis. 
+
+In this research study, it is plausible/likely that the sample population recruited for the experiment may vary, and we would need to plan for the worst case scenario where the sample population drops below expected/planned values. Hence, running the `pwr.t.test` with varying sample sizes would result in the following impact to statistical power (`sig.level=0.05` and `d=0.5/1.075955`):
+
+```{r pwr5, eval=FALSE, echo=FALSE}
+pwr.t.test(n=80, sig.level=0.05, d=0.5/1.075955, type="two.sample", alternative="greater")
+
+pwr.t.test(n=70, sig.level=0.05, d=0.5/1.075955, type="two.sample", alternative="greater")
+
+pwr.t.test(n=60, sig.level=0.05, d=0.5/1.075955, type="two.sample", alternative="greater")
+
+pwr.t.test(n=50, sig.level=0.05, d=0.5/1.075955, type="two.sample", alternative="greater")
+
+pwr.t.test(n=40, sig.level=0.05, d=0.5/1.075955, type="two.sample", alternative="greater")
+
+pwr.t.test(n=30, sig.level=0.05, d=0.5/1.075955, type="two.sample", alternative="greater")
+```
+
+Sample population in each group | Power
+-- | --
+80 | 90%
+70 | 86%
+60 | 81%
+50 | 75%
+40 | 66%
+30 | 55%
+
+Knowing how the power changes with the changes in sample population would be very useful to preempt changes in the downstream research operations. It would also be worthwhile to specify the power in which is tolerable for the research experiment.
+
+### An Expected Effect
+
+Next, we generate a one time simulation with the effect size of 0.5 years. From the literature review, the mean tenure at Google in the control group is set as 1.9 years ([Swanner, 2017][Swanner, 2017]), and the mean tenure of the treatment group is set as 2.4 years (i.e., 1.9 + 0.5 = 2.4 years). The standard deviation would be assumed as 1.075955, which is derived from our `pwr.t.test` calculation under the assumption of an effect size of 0.5 years. This simulation would generate 80 people under the control group and 80 people under the treatment group.
+
+```{r sim, echo=FALSE}
+set.seed(seed = 6666)
+n<-160
+bp.dat <- data.table(Group = c(rep.int(x = "Treatment", times = n/2), rep.int(x = "Control", times = n/2)))
+
+bp.dat[Group == "Control",  Tenure_Year:= round(x = rnorm(n = .N, mean = 1.9, sd =1.075955), digits = 1)]
+bp.dat[Group == "Treatment", Tenure_Year:= round(x = rnorm(n = .N, mean = 2.4, sd = 1.075955), digits = 1)]
+datatable(data = bp.dat)
+```
+
+Here we evaluate the effect size, lower confidence interval and p-value of this one-time simulation:
+
+```{r analyze, echo=FALSE}
+analyze.experiment(the.dat = bp.dat)
+```
+
+Now, we repeat the simulation a 1000 times, each with an overall sample size of 160. Each sample will be analyzed with a two-sample, one-sided t-test of the hypothesis that the treatment increases the mean tenures of Google software engineers relative to the control.
+
+```{r 1000, echo=FALSE}
+B <- 1000
+n <- 160
+RNGversion(vstr = 3.6)
+set.seed(seed = 5656)
+Experiment <- 1:B
+Group <- c(rep.int(x = "Treatment", times = n/2), rep.int(x = "Control", times = n/2))
+sim.dat <- as.data.table(expand.grid(Experiment = Experiment, Group = Group))
+setorderv(x = sim.dat, cols = c("Experiment", "Group"), order = c(1,1))
+sim.dat[Group == "Control", Tenure_Year:= round(x = rnorm(n = .N, mean = 1.9, sd = 1.075955), digits = 1)]
+sim.dat[Group == "Treatment", Tenure_Year:= round(x = rnorm(n = .N, mean = 2.4, sd = 1.075955), digits = 1)]
+#dim(sim.dat)
+
+exp.results <- sim.dat[, analyze.experiment(the.dat = .SD), 
+                       keyby = "Experiment"]
+
+DT::datatable(data = round(x = exp.results[1:1000, ], digits = 3), 
+              rownames = F)
+```
+
+We should see 160,000 rows of data (i.e., 160 x 1000 experiments):
+
+```{r dim}
+dim(sim.dat)
+```
+
+We now evaluate the results of the 1000 experiments below:
+
+```{r evaluate}
+exp.results[, mean(p<0.05)]
+exp.results[, summary(effect)]
+exp.results[, summary(lower_ci)]
+```
+
+From the results, there are 90.4% of experiments with p-values smaller than the significance level of 5%, which means that this is the power to detect the effect of a 0.5 years increase in mean tenure. 
+
+The range of observable effects is as follows: The minimum effect size is -0.08125, maximum effect size is 1.03875, and the mean effect size is 0.50023. 
+The minimum value of the lower confidence interval is -0.3623, maximum of the lower confidence interval is  0.7639, and the mean lower confidence interval is 0.2197.
+
+What can we learn from this simulation? With this design and sample size, the simulation suggests that the experiment's power is 90.4%. There is no need to adjust the sample size to improve the likelihood of detecting the effect of 0.5 years.
+
+### No Effect
+
+Now we generate a one time simulation with no effect. Under no effect, we will assume the mean tenure for both the treatment group and control group to be 1.9 years, which is the mean tenure of Google employees ([Swanner, 2017][Swanner, 2017]).
+
+```{r sim2, echo=FALSE}
+set.seed(seed = 7777)
+n<-160
+bp.dat <- data.table(Group = c(rep.int(x = "Treatment", times = n/2), rep.int(x = "Control", times = n/2)))
+bp.dat[Group == "Control",  Tenure_Year:= round(x = rnorm(n = .N, mean = 1.9, sd = 1.075955), digits = 1)]
+bp.dat[Group == "Treatment", Tenure_Year:= round(x = rnorm(n = .N, mean = 1.9, sd = 1.075955), digits = 1)]
+datatable(data = bp.dat)
+```
+
+Here we evaluate the effect size, lower confidence interval and p-value of this one-time simulation:
+
+```{r analyze2, echo=FALSE}
+analyze.experiment(the.dat = bp.dat)
+```
+
+By repeating the experiment a 1000 times, each with an overall sample size of 160, we get the following results:
+
+```{r 1000_2, echo=FALSE}
+B <- 1000
+n <- 160
+RNGversion(vstr = 3.6)
+set.seed(seed = 6767)
+Experiment <- 1:B
+Group <- c(rep.int(x = "Treatment", times = n/2), rep.int(x = "Control", times = n/2))
+sim.dat <- as.data.table(expand.grid(Experiment = Experiment, Group = Group))
+setorderv(x = sim.dat, cols = c("Experiment", "Group"), order = c(1,1))
+sim.dat[Group == "Control", Tenure_Year:= round(x = rnorm(n = .N, mean = 1.9, sd = 1.075955), digits = 1)]
+sim.dat[Group == "Treatment", Tenure_Year:= round(x = rnorm(n = .N, mean = 1.9, sd = 1.075955), digits = 1)]
+#dim(sim.dat)
+exp.results <- sim.dat[, analyze.experiment(the.dat = .SD), 
+                       keyby = "Experiment"]
+DT::datatable(data = round(x = exp.results[1:1000, ], digits = 3), 
+              rownames = F)
+
+```
+
+Likewise, we now evaluate the results of the 1000 experiments below:
+
+```{r evaluate2}
+exp.results[, mean(p<0.05)]
+exp.results[, summary(effect)]
+exp.results[, summary(lower_ci)]
+```
+
+In the scenario of no effect, there are 4.7% of experiments with p-values smaller than the significance level of 5%, which means that this is the power to detect a no effect scenario. 
+
+The range of observable effects is as follows: The minimum effect size is -0.596250, maximum effect size is 0.563750, and the mean effect size is  -0.000505. The minimum value of the lower confidence interval is -0.8615, maximum of the lower confidence interval is  0.2806, and the mean lower confidence interval is  -0.2813.
+
+## Summary of Simulation
+
+The summary of simulation results is described in the table below:
+
+Research Question | Scenario | Mean Effect in Simulated Data | 95% Confidence Interval of Mean Effect | False Positive % | True Negative % | False Negative % | True Positive %
+-- | -- | -- | -- | -- | -- | -- | --
+Sole Question | No Effect  | -0.000505 | -0.2813 | 4.7% | 95.3% |  | 
+Sole Question | Effect of 0.5 years | 0.50023 | 0.2197 |  |  | 9.6% | 90.4%
+
+# Recommendations
+
+Based on the research plan and the simulations, the team has assessed the research design to be robust and amenable to experimentation, albeit with certain limitations and uncertainties that would need to be managed. Notwithstanding, this research question on whether a 5% increment can improve average tenures of software engineers would be highly valuable for talent management in Google, especially in an industry where staff movement is ubiquitous. If indeed that a 5% increment can demonstrate causality to higher tenures, then various HR policies on pay and benefits should be considered. However, if the research is unable to demonstrate causality, then it might be worthwhile to investigate further on other factors that affect retention, and/or we should conduct a survey to poll sentiments on those employees that leave Google. Either way, there is strong value for these research studies to be conducted.
+
+# References
+
+The Dice 2020 Tech Salary Report | eBook | Dice Resources. (2020). Retrieved 20 February 2021, from https://techhub.dice.com/Dice-2020-Tech-Salary-Report.html.
+
+“Tech industry battles highest attrition rate in the world – and it’s costly” – viGlobal. (2018). Retrieved 20 February 2021, from https://www.viglobal.com/2018/06/13/tech-industry-battles-highest-attrition-rate-in-the-world-and-its-costly/.
+
+Kochanski, J., & Ledford, G. (2001). "HOW TO KEEP ME"—RETAINING TECHNICAL PROFESSIONALS. Research Technology Management, 44(3), 31-38. Retrieved February 21, 2021, from http://www.jstor.org/stable/24133992.
+
+U.S. Bureau of Labor Statistics, (2018). Retrieved February 21, from https://www.bls.gov/news.release/tenure.nr0.htm.
+
+Full List of Employee Tenure at Fortune 500 Companies. Retrieved 21 February 2021, from https://www.payscale.com/data-packages/employee-loyalty/full-list.
+
+Ghapanchi, A. H., Aurum, A. (2011). Antecedents to IT personnel's intentions to leave: A systematic literature review. Journal of Systems and Software, Volume 84, 238-249. Retrieved February 21, 2021, from https://www.sciencedirect.com/science/article/abs/pii/S0164121210002645?via%3Dihub.
+
+The Deloitte Global Millennial Survey: Societal Discord and Technological Transformation Create a “Generation Disrupted”. (2019). Retrieved February 21, 2021, from https://www2.deloitte.com/global/en/pages/about-deloitte/articles/millennialsurvey.html.
+
+Lewis, S. (2020). What Is A High Employee Attrition Rate In Tech Industry. DevSkiller - Powerful tool to test developers skills. Retrieved 21 February 2021, from https://devskiller.com/attrition-rate-in-tech/.
+
+U.S. Bureau of Labor Statistics, (2021). Retrieved February 21, from https://www.bls.gov/news.release/eci.t09.htm.
+
+Hecker, D. E. (2005). Occupational employment projections to 2014. Retrieved 21 February 2021, from https://www.bls.gov/opub/mlr/2005/11/art5full.pdf.
+
+Swanner, N. (2017). Tech Jobs at These Big Firms Last Less Than 2 Years. Dice Insights. Retrieved 23 February 2021, from https://insights.dice.com/2017/08/22/tech-jobs-last-2-years-study/.
+
+
+
+
+
+[viGlobal, 2018]: https://www.viglobal.com/2018/06/13/tech-industry-battles-highest-attrition-rate-in-the-world-and-its-costly/
+
+[Kochanski & Ledford, 2001]: http://www.jstor.org/stable/24133992
+
+[U.S. Bureau of Labor Statistics, 2018]: https://www.bls.gov/news.release/tenure.nr0.htm
+
+[PayScale, n.d.]: https://www.payscale.com/data-packages/employee-loyalty/full-list
+
+[US Bureau of Labor Statistics, 2021]: https://www.bls.gov/news.release/eci.t09.htm
+
+[Ghapanchi & Aurum, 2011]: https://www.sciencedirect.com/science/article/abs/pii/S0164121210002645?via%3Dihub
+
+[Deloitte, 2019]: https://www2.deloitte.com/global/en/pages/about-deloitte/articles/millennialsurvey.html
+
+[The Dice, 2020]: https://techhub.dice.com/Dice-2020-Tech-Salary-Report.html
+
+[The Dice, 2017]: https://insights.dice.com/2017/08/22/tech-jobs-last-2-years-study/
+
+[Lewis, 2020]: https://devskiller.com/attrition-rate-in-tech/
+
+[Hecker, 2005]: https://www.bls.gov/opub/mlr/2005/11/art5full.pdf
+
+[Swanner, 2017]: https://insights.dice.com/2017/08/22/tech-jobs-last-2-years-study/
